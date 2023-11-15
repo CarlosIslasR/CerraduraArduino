@@ -1,0 +1,190 @@
+#include <Keypad.h>
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>
+LiquidCrystal_I2C lcd(0x27,16,2); // tamaño de tu LCD
+Servo servo;
+
+#define Password_Length 5 // largo de tu contraseña, si tiene 4 digitos debes poner el 5
+int Position = 0; // posición inicial de la cerradura-servo
+char Particular[Password_Length]; 
+char Specific[Password_Length] = "1234"; // Aqui va la contraseña, incluso puedes poner de A a la D
+byte Particular_Count = 0, Specific_Count = 0; // cuenta los digitos y verifica que sea correcto
+char Key; 
+const byte ROWS = 4; // cantidad de filas del teclado
+const byte COLS = 4; // cantidad de columnas del teclado
+char keys[ROWS][COLS] = { 
+  // posición de los digitos en el teclado
+  {'1','2','3','A'}, 
+
+  {'4','5','6','B'},
+
+  {'7','8','9','C'},
+
+  {'*','0','#','D'}
+};
+bool SmartDoor = true; // la cerradura-servo
+// los pines en el arduino para conectar el teclado
+byte rowPins[ROWS] = {7, 6, 5, 4};
+byte colPins[COLS] = {3, 2, 1, 0};
+Keypad myKeypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS); // ingresa los datos desde el teclado
+
+// caracteres para indicar cerrado
+byte Locked[8] = { 
+  B01110,
+  B10001,
+  B10001,
+  B11111,
+  B11011,
+  B11011,
+  B11011,
+  B11111
+};
+// caracteres para indicar abierto
+byte Opened[8] = {
+  B01110,
+  B00001,
+  B00001,
+  B11111,
+  B11011,
+  B11011,
+  B11011,
+  B11111
+};
+void setup()
+{
+  servo.attach(10); // pin del servo en el arduino
+  ServoClose(); // funcion de cerrar la cerradura-servo
+  lcd.init(); // iniciales del LCD
+  lcd.backlight(); // enciende la luz trasera del LCD
+  lcd.setCursor(1,0); // Indica el cursor en el LCD
+  lcd.print("PUERTA CERRADA"); // texto en LCD
+  lcd.setCursor(1,1); // posicion del cursor en el LCD
+  lcd.print("DESEAS ENTRAR?"); // texto
+  delay(5000); // espera 5 segundos
+  lcd.clear(); // limpia el LCD
+
+}
+
+void loop()
+{
+  if (SmartDoor == 0) // abre la cerradura-servo
+  {
+    Key = myKeypad.getKey(); // compara los valores ingresados con los cargados
+
+    if (Key == '#') // Indica presionar la tecla #
+
+    {
+      lcd.clear(); // limpia el LCD
+      ServoClose(); // cierra la cerradura-servo
+      lcd.setCursor(2,0); // posiciona el cursor en el LCD
+      lcd.print("CERRADO"); // texto
+      lcd.createChar(0, Locked); // caracter de cerrado
+      lcd.setCursor(14,0); // posicion en LCD
+      lcd.write(0); // imprime el primer caracter
+      delay(3000); // espera 3 segundos
+      SmartDoor = 1; // cierra la cerradura-servo
+    }
+  }
+
+  else Open(); // mantiene abierta la cerradura-servo
+}
+void clearData() // limpia los datos
+{
+  while (Particular_Count != 0) // cuenta los digitos presionados
+  {
+    Particular[Particular_Count--] = 0; // cuenta cuantos digitos
+  }
+  return; // regresa los datos
+}
+
+void ServoOpen() // abre la cerradura-servo
+{
+  for (Position = 180; Position >= 0; Position -= 5) { // mueve 180 grados la cerradura-servo
+    servo.write(Position); // mueve a la posición
+    delay(15); // espera 15 milisegundos
+  }
+}
+
+void ServoClose() // cierra la cerradura-servo
+{
+  for (Position = 0; Position <= 180; Position += 5) { // mueve de la posicion 0 a 180 grados la cerradura-servo
+    servo.write(Position); // mueve a la posición
+    delay(15); // espera 15 milisegundos
+  }
+}
+
+void Open() // declara las funciones
+{
+  lcd.setCursor(0,0); // posiciona el cursor en el LCD
+  lcd.print("INGRESA PASSWORD"); // texto
+  
+  Key = myKeypad.getKey(); // da los digitos que pulsas en el teclado
+  if (Key)
+  {
+    Particular[Particular_Count] = Key; 
+    lcd.setCursor(Particular_Count, 1); // posiciona el cursor en el LCD
+    lcd.print("*"); // imprime los * en vez de los digitos para ocultarlos
+    Particular_Count++; // cuenta el largo de la contraseña
+  }
+
+  if (Particular_Count == Password_Length - 1) // da el largo de la contraseña
+  {
+    if (!strcmp(Particular, Specific)) // cuenta el largo y checa que la contraseña sea correcta
+    {
+      lcd.clear();
+      ServoOpen(); // mueve la cerradura-servo 180 grados
+      lcd.setCursor(2,0); // posiciona el cursor en el LCD
+      lcd.print("ABIERTO");
+      lcd.createChar(1, Opened);
+      lcd.setCursor(14,0); // posiciona el cursor en el LCD
+      lcd.write(1);
+      lcd.setCursor(0,1); // posiciona el cursor en el LCD
+      lcd.print("CERRAR CON #");
+      SmartDoor = 0;
+    }
+    else
+    {
+      lcd.clear();
+      lcd.setCursor(0,0); // sposiciona el cursor en el LCD
+      lcd.print("ESTAS MAL"); // texto
+      lcd.setCursor(0,1);
+      lcd.print("OTRA VEZ?");
+      lcd.setCursor(13,1);
+      lcd.print("10");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("09");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("08");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("07");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("06");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("05");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("04");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("03");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("02");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("01");
+      delay(1000);
+      lcd.setCursor(13,1);
+      lcd.print("00");
+      delay(1000);
+      lcd.clear();
+      SmartDoor = 1; // cierra la cerradura-servo
+    }
+    clearData(); // limpia los datos
+  }
+}
